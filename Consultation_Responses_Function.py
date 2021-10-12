@@ -1,7 +1,7 @@
 
 
 
-def responses_in_word(directory, xlsxfile, GN_name, name_column, altname_column, firstcol, lastcol, rankcolumns, matrixcolumns):
+def responses_in_word(data, directory, xlsxfile, GN_name, name_column, altname_column, firstcol, lastcol, rankcolumns, matrixcolumns):
     import os
     import pandas as pd
     import matplotlib.pyplot as plt
@@ -11,7 +11,7 @@ def responses_in_word(directory, xlsxfile, GN_name, name_column, altname_column,
     
     
     os.chdir(directory)
-    data =  pd.read_excel(xlsxfile)
+    #data =  pd.read_excel(xlsxfile)
     
     
     graphcols= []
@@ -118,7 +118,6 @@ def responses_in_word(directory, xlsxfile, GN_name, name_column, altname_column,
     question0 = ""
     for i in range(firstcol, lastcol):
         if '[Question:' in data.columns[i] and not('Specify [Question:' in data.columns[i]):
-            
             pattern = re.compile("([0-9]|[1-9][0-9])\.\s")
             question = data.columns[i].split("[Question:")[1]
             question = re.split(pattern, data.columns[i].split("[Question:")[0])[1] +"." + question[:-1]
@@ -136,6 +135,7 @@ def responses_in_word(directory, xlsxfile, GN_name, name_column, altname_column,
     selectallthatapplycols_listoflists = selectallthatapplycols_listoflists  + [sublist]
     #--------------------------------------------------------
     
+
     selectallthatapplyoptions = [""]*data.shape[1]
     # go through this list of lists and create graphs:
     j= 0
@@ -149,9 +149,10 @@ def responses_in_word(directory, xlsxfile, GN_name, name_column, altname_column,
             x = []
             y = []
             for i in range(data2.shape[1]):
-                x.append(list(data2.iloc[list((data2.iloc[:,i]!= '-') & (str(data2.iloc[:,i])!="nan")),i])[0])
-                y.append(data2.iloc[list((data2.iloc[:,i]!= '-') & (str(data2.iloc[:,i])!="nan")),i].shape[0])
-            
+                data3 = data2.iloc[:,i].dropna()
+                x.append(list(data3[data3!='-'])[0])
+                y.append(len(list(data3[data3!='-'])))
+                
                 selectallthatapplyoption = data2.columns[i].split("[Question:")[0]
                 pattern = re.compile("([0-9]|[1-9][0-9])\.\s")
                 selectallthatapplyoption = re.split(pattern, selectallthatapplyoption)[2]

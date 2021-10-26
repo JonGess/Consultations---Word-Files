@@ -1,7 +1,7 @@
 
 
 
-def responses_in_word(data, directory, xlsxfile, GN_name, name_column, altname_column, firstcol, lastcol, rankcolumns, matrixcolumns):
+def responses_in_word(data, directory, xlsxfile, GN_name, name_column, altname_column, firstcol, lastcol, rankcolumns, matrixcolumns,selectall_inmatrix):
     import os
     import pandas as pd
     import matplotlib.pyplot as plt
@@ -96,6 +96,7 @@ def responses_in_word(data, directory, xlsxfile, GN_name, name_column, altname_c
         plt.grid(color='#95a5a6', linestyle='--', linewidth=2, axis='y', alpha=0.7)
         plt.ylabel('Number of times ranked 1st')
         plt.xticks(rotation=90)
+        plt.tight_layout()
         plt.savefig("fig" + str(rankcols[0]) +".png")
         plt.close()
     
@@ -138,14 +139,12 @@ def responses_in_word(data, directory, xlsxfile, GN_name, name_column, altname_c
 
     selectallthatapplyoptions = [""]*data.shape[1]
     # go through this list of lists and create graphs:
-    j= 0
     for listi in selectallthatapplycols_listoflists:
         if len(listi)>0:
             colsi = data.columns[listi]
             data2 = data[colsi]
             question = data.columns[listi[0]].split("[Question:")[1]
             question = re.split(pattern, data.columns[listi[0]].split("[Question:")[0])[1] +"." + question[:-1]
-            
             x = []
             y = []
             for i in range(data2.shape[1]):
@@ -164,14 +163,13 @@ def responses_in_word(data, directory, xlsxfile, GN_name, name_column, altname_c
             plt.grid(color='#95a5a6', linestyle='--', linewidth=2, axis='y', alpha=0.7)
             plt.ylabel('Number of times selected')
             plt.xticks(rotation=90)
-            plt.savefig("fig" + str(listi[0]) +".png")
+            plt.savefig("fig" + str(listi[0]) +".png", bbox_inches='tight')
             plt.close()
         
             renamecolumns = list(data.columns)
             renamecolumns[listi[0]] = question
             data.columns = renamecolumns
-            
-            j = j+1
+
     
         
     
@@ -197,60 +195,115 @@ def responses_in_word(data, directory, xlsxfile, GN_name, name_column, altname_c
                     data.iloc[j,i] = data.iloc[j,i] + ": " + data.iloc[j,i+1]
                     
     
-    #matrix questions:
+    #this is for matrix questions that have select all that apply questions
     othermatrixcolumns = []
-    for listi in matrixcolumns:
-        if len(listi)>0: #only if there is actually at least one matrix question
-            colsi = data.columns[listi]
-            data2 = data[colsi]
-            question = data2.columns[0].split("; Question:")[1]
-            pattern = re.compile("([0-9]|[1-9][0-9])\.\s")
-            if not(re.search(pattern, data2.columns[0].split("[Question:")[0]) is None):
-                question = re.split(pattern, data2.columns[0].split("[Question:")[0])[1] +". " + question[:-1]
-            else:
-                pattern = re.compile("([0-9]|[1-9][0-9])B.\s")
-                question = re.split(pattern, data2.columns[0].split("[Question:")[0])[1] +". " + question[:-1]
-            topiclist = [""]*len(listi)
-            categorylist = [""]*len(listi)
-            for i in range(len(listi)):
-                topiclist[i] = data2.columns[i].split("[Topic:")[1].split("; ")[0]
-                categorylist[i] = data2.columns[i].split("; Category:")[1].split("; Question:")[0]
-                if len(categorylist[i])==1:
-                    categorylist[i] = ""
-            
-            i =0
-            while not(listi[i] in othermatrixcolumns):
-                topic = topiclist[i]
+    for i in range(len(matrixcolumns)):
+        if selectall_inmatrix[i]!="":
+            for j in matrixcolumns[i]:
+                category = data.columns[j].split("; Category:")[1].split("; Question:")[0]
+                if selectall_inmatrix[i]==category and not(j in othermatrixcolumns): #this only deals with the select all that apply columns 
+                    x = []
+                    y = []
+                    data3 = data.iloc[:,j].dropna()
+                    x.append(list(data3[data3!='-'])[0])
+                    y.append(len(list(data3[data3!='-'])))
                 
-                #rename column
-                columntext = question + " " + topic
-                columnnames = list(data.columns)
-                columnnames[listi[i]] = columntext
-                data.columns = columnnames
-                
-                k=0
-                l ="" 
-                for j in range(len(listi)):
-                    #loop through the matrix, to get the columns that belong together
-                    if topiclist[j] == topic:
-                        print(j)
-                        if k >0:
-                            othermatrixcolumns = othermatrixcolumns + [listi[j]]
-                        k = k+1
-                        if l=="":
-                            l = j #this only changes to j the first time the topic is correct
-                        if listi[j] in graphcols:
-                            smartplotfunction(data[[data.columns[listi[j]]]],listi[j], data)
-                        
-                        for m in range(data.shape[0]):
-                            if j ==l:
-                                data.iloc[m,listi[l]] = categorylist[j] + str(data.iloc[m,listi[j]])
-                            else:
-                                if str(data.iloc[m,listi[j]])!="nan":
-                                    data.iloc[m,listi[l]] = data.iloc[m,listi[l]] + "\n" + categorylist[j] + " " + data.iloc[m,listi[j]]
-                
-                i = i+1
+                    pattern = re.compile("([0-9]|[1-9][0-9])\.\s")  
+                    question = re.split(pattern, data.columns[j])[1] + ". " + data.columns[j].split("; Question:")[1][:-1]
+                    question = question + " " + data.columns[j].split("[Topic:")[1].split("; ")[0]
+                    columnnames = list(data.columns)
+                    columnnames[j] = question
+                    data.columns = columnnames
+                    
+                    #after identifying the question (that includes the topic) we go through the rest of the matrix and identify the columns
+                    #that have the same question and are still in the select all that apply category
+                    for k in range(j+1, matrixcolumns[i][len(matrixcolumns[i])-1]+1):
+                        pattern = re.compile("([0-9]|[1-9][0-9])\.\s")  
+                        question = re.split(pattern, data.columns[k])[1] + ". " + data.columns[k].split("; Question:")[1][:-1]
+                        question = question + " " + data.columns[k].split("[Topic:")[1].split("; ")[0]
+                        category = data.columns[k].split("; Category:")[1].split("; Question:")[0]
+                        if question == data.columns[j] and selectall_inmatrix[i]==category:
+                            data3 = data.iloc[:,k].dropna()
+                            if data3[data3!='-'].shape[0]>0:
+                                x.append(list(data3[data3!='-'])[0])
+                                y.append(len(list(data3[data3!='-'])))
+                            
+                            othermatrixcolumns= othermatrixcolumns + [k]
+                            for l in range(data.shape[0]):
+                                if str(data.iloc[l,k])!="nan" and str(data.iloc[l,k])!="-":
+                                    data.iloc[l,j] = str(data.iloc[l,j]) + "; " + str(data.iloc[l,k])
+                        if question == data.columns[j] and selectall_inmatrix[i]!=category:
+                            data3 = data.iloc[:,k].dropna()
+                            x.append(category)
+                            y.append(len(list(data3[data3!='-'])))
+                            othermatrixcolumns= othermatrixcolumns + [k]
+                            for l in range(data.shape[0]):
+                                if str(data.iloc[l,k])!="nan":
+                                    data.iloc[l,j] = str(data.iloc[l,j]) + "\n" + category + ": " + str(data.iloc[l,k])
+                    
+                    plt.bar(x, y, color='royalblue', alpha=0.7)
+                    plt.grid(color='#95a5a6', linestyle='--', linewidth=2, axis='y', alpha=0.7)
+                    plt.ylabel('Number of times selected')
+                    plt.xticks(rotation=90)
+                    plt.savefig("fig" + str(j) +".png", bbox_inches='tight')
+                    plt.close()
     
+    
+    
+    
+    #other matrix questions:
+    n = 0
+    for listi in matrixcolumns:
+        if selectall_inmatrix[n]=="":
+            if len(listi)>0: #only if there is actually at least one matrix question
+                colsi = data.columns[listi]
+                data2 = data[colsi]
+                question = data2.columns[0].split("; Question:")[1]
+                pattern = re.compile("([0-9]|[1-9][0-9])\.\s")
+                if not(re.search(pattern, data2.columns[0].split("[Question:")[0]) is None):
+                    question = re.split(pattern, data2.columns[0].split("[Question:")[0])[1] +". " + question[:-1]
+                else:
+                    pattern = re.compile("([0-9]|[1-9][0-9])B.\s")
+                    question = re.split(pattern, data2.columns[0].split("[Question:")[0])[1] +". " + question[:-1]
+                topiclist = [""]*len(listi)
+                categorylist = [""]*len(listi)
+                for i in range(len(listi)):
+                    topiclist[i] = data2.columns[i].split("[Topic:")[1].split("; ")[0]
+                    categorylist[i] = data2.columns[i].split("; Category:")[1].split("; Question:")[0]
+                    if len(categorylist[i])==1:
+                        categorylist[i] = ""
+                
+                i =0
+                while not(listi[i] in othermatrixcolumns):
+                    topic = topiclist[i]
+                    #rename column
+                    columntext = question + " " + topic
+                    columnnames = list(data.columns)
+                    columnnames[listi[i]] = columntext
+                    data.columns = columnnames
+                    
+                    k=0
+                    l ="" 
+                    for j in range(len(listi)):
+                        #loop through the matrix, to get the columns that belong together
+                        if topiclist[j] == topic:
+                            if k >0:
+                                othermatrixcolumns = othermatrixcolumns + [listi[j]]
+                            k = k+1
+                            if l=="":
+                                l = j #this only changes to j the first time the topic is correct
+                            if listi[j] in graphcols:
+                                smartplotfunction(data[[data.columns[listi[j]]]],listi[j], data)
+                            
+                            for m in range(data.shape[0]):
+                                if j ==l:
+                                    data.iloc[m,listi[l]] = categorylist[j] + str(data.iloc[m,listi[j]])
+                                else:
+                                    if str(data.iloc[m,listi[j]])!="nan":
+                                        data.iloc[m,listi[l]] = data.iloc[m,listi[l]] + "\n" + categorylist[j] + " " + data.iloc[m,listi[j]]
+                    
+                    i = i+1
+        n = n+1
     
     matrixcolumns2 = []        
     for i in range(len(matrixcolumns)):

@@ -300,7 +300,7 @@ def responses_in_word(data, directory, xlsxfile, GN_name, name_column, altname_c
                                     data.iloc[m,listi[l]] = categorylist[j] + str(data.iloc[m,listi[j]])
                                 else:
                                     if str(data.iloc[m,listi[j]])!="nan":
-                                        data.iloc[m,listi[l]] = data.iloc[m,listi[l]] + "\n" + categorylist[j] + " " + data.iloc[m,listi[j]]
+                                        data.iloc[m,listi[l]] = str(data.iloc[m,listi[l]]) + "\n" + categorylist[j] + ": " + str(data.iloc[m,listi[j]])
                     
                     i = i+1
         n = n+1
@@ -419,5 +419,5 @@ def responses_in_word(data, directory, xlsxfile, GN_name, name_column, altname_c
                     bold_para.bold = True
                     para.add_run(str(data.iloc[j,i]))
                     
-    document.save('Global Consultation - '+ GN_name +' .docx')
+    document.save('Responses - '+ GN_name +' .docx')
 
